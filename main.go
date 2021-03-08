@@ -47,6 +47,7 @@ Options:
   --minor-edit         Don't send notifications while updating Confluence page.
   --debug              Enable debug logs.
   --trace              Enable trace logs.
+  --no-raw-attachments    Disable raw attachments processing (use 'attachment://' prefix) [default: false]
   -h --help            Show this screen and call 911.
   -v --version         Show version.
 `
@@ -59,12 +60,13 @@ func main() {
 	}
 
 	var (
-		targetFile, _ = args["-f"].(string)
-		compileOnly   = args["--compile-only"].(bool)
-		dryRun        = args["--dry-run"].(bool)
-		editLock      = args["-k"].(bool)
-		dropH1        = args["--drop-h1"].(bool)
-		minorEdit     = args["--minor-edit"].(bool)
+		targetFile, _         = args["-f"].(string)
+		compileOnly           = args["--compile-only"].(bool)
+		dryRun                = args["--dry-run"].(bool)
+		editLock              = args["-k"].(bool)
+		dropH1                = args["--drop-h1"].(bool)
+		minorEdit             = args["--minor-edit"].(bool)
+		disableRawAttachments = args["--no-raw-attachments"].(bool)
 	)
 
 	if args["--debug"].(bool) {
@@ -213,7 +215,7 @@ func main() {
 		log.Fatalf(err, "unable to create/update attachments")
 	}
 
-	markdown = mark.CompileAttachmentLinks(markdown, attaches)
+	markdown = mark.CompileAttachmentLinks(markdown, attaches, !disableRawAttachments)
 
 	if dropH1 {
 		log.Info("Leading H1 heading will be excluded from the Confluence output")

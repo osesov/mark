@@ -160,7 +160,7 @@ func ResolveAttachments(
 	return attaches, nil
 }
 
-func CompileAttachmentLinks(markdown []byte, attaches []Attachment) []byte {
+func CompileAttachmentLinks(markdown []byte, attaches []Attachment, process_raw_attachments bool) []byte {
 	links := map[string]string{}
 	replaces := []string{}
 
@@ -203,7 +203,7 @@ func CompileAttachmentLinks(markdown []byte, attaches []Attachment) []byte {
 			found = true
 		}
 
-		if bytes.Contains(markdown, []byte(replace)) {
+		if process_raw_attachments && bytes.Contains(markdown, []byte(replace)) {
 			from := replace
 
 			log.Debugf(nil, "replacing link: %q -> %q", from, to)
