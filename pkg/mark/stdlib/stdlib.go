@@ -131,7 +131,8 @@ func templates(api *confluence.API) (*template.Template, error) {
 		`ac:link:user`: text(
 			`{{ with .Name | user }}`,
 			/**/ `<ac:link>`,
-			/**/ `<ri:user ri:account-id="{{ .AccountID }}"/>`,
+			/**/ `{{if .AccountID}}<ri:user ri:account-id="{{ .AccountID }}"/>{{end}}`,
+			/**/ `{{if .UserKey}}<ri:user ri:userkey="{{ .UserKey }}"/>{{end}}`,
 			/**/ `</ac:link>`,
 			`{{ else }}`,
 			/**/ `{{ .Name }}`,

@@ -19,6 +19,7 @@ import (
 
 type User struct {
 	AccountID string `json:"accountId"`
+	UserKey   string `json:"userkey"`
 }
 
 type API struct {
@@ -495,6 +496,34 @@ func (api *API) UpdatePage(
 	return nil
 }
 
+func (api *API) GetUserByNameOld(name string) (*User, error) {
+	var response struct {
+		Results []struct {
+			User User `json:"user"`
+		} `json:"results"`
+	}
+
+	resp, err := api.rest.
+		Res("search", &response).
+		Get(map[string]string{
+			"cql": fmt.Sprintf("user.fullname~%q+and+type=user", name),
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Raw.StatusCode != 200 || len(response.Results) == 0 {
+		return nil, karma.
+			Describe("name", name).
+			Reason(
+				"user with given name is not found",
+			)
+	}
+
+	return &response.Results[0].User, nil
+}
+
 func (api *API) GetUserByName(name string) (*User, error) {
 	var response struct {
 		Results []struct {
@@ -502,14 +531,19 @@ func (api *API) GetUserByName(name string) (*User, error) {
 		}
 	}
 
-	_, err := api.rest.
+	result, err := api.rest.
 		Res("search").
 		Res("user", &response).
 		Get(map[string]string{
 			"cql": fmt.Sprintf("user.fullname~%q", name),
 		})
+
 	if err != nil {
 		return nil, err
+	}
+
+	if result.Raw.StatusCode == 404 {
+		return api.GetUserByNameOld(name)
 	}
 
 	if len(response.Results) == 0 {
