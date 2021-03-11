@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/docopt/docopt-go"
 	"github.com/kovetskiy/lorg"
@@ -48,6 +50,7 @@ Options:
   --debug              Enable debug logs.
   --trace              Enable trace logs.
   --no-raw-attachments    Disable raw attachments processing (use 'attachment://' prefix) [default: false]
+  --page-version <file> Check page version sequence.
   -h --help            Show this screen and call 911.
   -v --version         Show version.
 `
@@ -67,6 +70,7 @@ func main() {
 		dropH1                = args["--drop-h1"].(bool)
 		minorEdit             = args["--minor-edit"].(bool)
 		disableRawAttachments = args["--no-raw-attachments"].(bool)
+		checkVersion, _       = args["--page-version"].(string)
 	)
 
 	if args["--debug"].(bool) {
@@ -210,6 +214,10 @@ func main() {
 		target = page
 	}
 
+	if checkVersion != "" {
+		check_version(target, checkVersion)
+	}
+
 	attaches, err := mark.ResolveAttachments(api, target, ".", meta.Attachments)
 	if err != nil {
 		log.Fatalf(err, "unable to create/update attachments")
@@ -245,7 +253,7 @@ func main() {
 		html = buffer.String()
 	}
 
-	err = api.UpdatePage(target, html, minorEdit, meta.Labels)
+	nextPageVersion, err := api.UpdatePage(target, html, minorEdit, meta.Labels)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -267,13 +275,45 @@ func main() {
 		}
 	}
 
+	if checkVersion != "" {
+		version_text := strconv.FormatInt(nextPageVersion, 10) + "\n"
+		err := ioutil.WriteFile(checkVersion, []byte(version_text), 0644)
+		if err != nil {
+			log.Fatalf(err, "Unable to write page version file %s as %d", checkVersion, nextPageVersion)
+		}
+	}
+
 	log.Infof(
 		nil,
-		"page successfully updated: %s",
+		"page successfully updated: version %d, url %s",
+		nextPageVersion,
 		creds.BaseURL+target.Links.Full,
 	)
 
+	fmt.Printf("version %d\n", nextPageVersion)
 	fmt.Println(
 		creds.BaseURL + target.Links.Full,
 	)
+}
+
+func check_version(target *confluence.PageInfo, version_file string) {
+	might_miss := (target.Version.Number == 1)
+	data, err := ioutil.ReadFile(version_file)
+	if err != nil {
+		if might_miss {
+			return
+		}
+		log.Fatalf(err, "Unable to load version file. Current page version is %d", target.Version.Number)
+	}
+
+	text := strings.TrimSpace(string(data))
+	old_version, err := strconv.ParseInt(text, 10, 64)
+
+	if err != nil {
+		log.Fatalf(err, "Unable to parse version file")
+	}
+
+	if target.Version.Number != old_version {
+		log.Fatalf(err, "Page version mismatch. Known version %d, Page version %d", old_version, target.Version.Number)
+	}
 }

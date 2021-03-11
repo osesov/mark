@@ -436,11 +436,11 @@ func (api *API) CreatePage(
 
 func (api *API) UpdatePage(
 	page *PageInfo, newContent string, minorEdit bool, newLabels []string,
-) error {
+) (int64, error) {
 	nextPageVersion := page.Version.Number + 1
 
 	if len(page.Ancestors) == 0 {
-		return fmt.Errorf(
+		return nextPageVersion, fmt.Errorf(
 			"page %q info does not contain any information about parents",
 			page.ID,
 		)
@@ -486,14 +486,14 @@ func (api *API) UpdatePage(
 		"content/"+page.ID, &map[string]interface{}{},
 	).Put(payload)
 	if err != nil {
-		return err
+		return nextPageVersion, err
 	}
 
 	if request.Raw.StatusCode != 200 {
-		return newErrorStatusNotOK(request)
+		return nextPageVersion, newErrorStatusNotOK(request)
 	}
 
-	return nil
+	return nextPageVersion, nil
 }
 
 func (api *API) GetUserByNameOld(name string) (*User, error) {
